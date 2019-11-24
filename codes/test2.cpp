@@ -17,9 +17,18 @@
 #include <map>
 using namespace std;
 
-int main() {
+int main()
+{
 
-    string s = "124";
-    int i = stoi(s);
-    cout << i << endl;
+    vector<pair<int, int>> v;
+    v.push_back(pair<int, int>(1, 3));
+    v.push_back(pair<int, int>(2, 3));
+    v.push_back(pair<int, int>(4, 6));
+    v.push_back(pair<int, int>(1, 5));
+    v.push_back(pair<int, int>(1, 2));
+    v.push_back(pair<int, int>(1, 7));
+    for (auto k = v.begin(); k != v.end(); ++k)
+    {
+        cout << k->first << " " << k->second << endl;
+    }
 }
