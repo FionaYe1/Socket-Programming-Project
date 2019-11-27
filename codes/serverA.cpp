@@ -14,61 +14,85 @@
 #include <vector>
 #include <iterator>
 #include <map>
+#include <set>
+#include <numeric>
+#include <utility>
 using namespace std;
 
 #define DEFAULT_IP "127.0.0.1"
 #define SERVER_A_PORT "21997" // the port users will be connecting to
-#define MAXBUFLEN 100
-
-
-
+#define MAXDATASIZE 500
 
 // state the functions:
 int initialUDP();
-
-
-
+void storeDate();
+void startDijkstra(string mapId, int start);
+void printMapConstruction();
+void printDijkstra();
+int sendBack(string mapId);
 
 // public variables:
+map<string, map<int, vector<pair<int, int>>>> data;
+map<string, vector<string>> parameters;
+map<int, int> dist;
+
 int sockfd;
 struct addrinfo hints, *servinfo, *p;
 int rv;
 int numbytes;
 struct sockaddr_storage their_addr;
-char buf[MAXBUFLEN];
 socklen_t addr_len;
 char s[INET6_ADDRSTRLEN];
 
-
-
-
 int main(int argc, char const *argv[])
 {
+    int status;
+    if ((status = initialUDP()) != 0)
+    {
+        return status;
+    }
 
-    
+    storeDate();
 
-    printf("listener: waiting to recvfrom...\n");
     cout << "The Server A is up and running using UDP on port " << SERVER_A_PORT << "." << endl;
+    printMapConstruction();
 
     addr_len = sizeof their_addr;
 
-    if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    struct parameter
     {
-        perror("recvfrom");
-        exit(1);
+        string map;
+        int vertexID;
+    };
+    struct parameter param;
+
+    while(true)
+    {
+        if ((numbytes = recvfrom(sockfd, &param, sizeof(parameter), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+        {
+            perror("recvfrom");
+            exit(1);
+        }
+
+        cout << "The Server A has received input for finding shortest paths : starting vertex " << param.vertexID << " of map " << param.map << "." << endl;
+        startDijkstra(param.map, param.vertexID);
+        printDijkstra();
+
+        if ((status = sendBack(param.map)) != 0)
+        {
+            perror("Can not send to AWS");
+        }
+        else
+        {
+            printf("The Server A has sent shortest paths to AWS.\n");
+        }
     }
 
-    printf("listener: got packet from %s\n", inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s));
-    printf("listener: packet is %d bytes long\n", numbytes);
-    buf[numbytes] = '\0';
-    printf("listener: packet contains \"%s\"\n", buf);
-    close(sockfd);
     return 0;
 }
 
-
-
-int initialUDP() {
+int initialUDP()
+{
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC; // set to AF_INET to force IPv4
     hints.ai_socktype = SOCK_DGRAM;
@@ -88,7 +112,7 @@ int initialUDP() {
             perror("listener: socket");
             continue;
         }
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+        if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
         {
             close(sockfd);
             perror("listener: bind");
@@ -108,10 +132,8 @@ int initialUDP() {
     return 0;
 }
 
-
-void storeDate() {
-    map<char, map<int, vector<pair<int, int>>>> data;
-    map<char, vector<string>> parameters;
+void storeDate()
+{
     map<int, vector<pair<int, int>>> nodes;
     ifstream infile;
     string fileName = "map.txt";
@@ -124,7 +146,7 @@ void storeDate() {
     }
 
     string line;
-    char mapID;
+    string mapID;
     while (infile >> line)
     {
         if (!isdigit(line[0]))
@@ -172,19 +194,124 @@ void storeDate() {
         }
     }
 
+    // for (auto i = data.begin(); i != data.end(); ++i)
+    // {
+    //     cout << "map id : " << i->first << endl;
+    //     map<int, vector<pair<int, int>>> map1 = i->second;
+    //     for (auto j = map1.begin(); j != map1.end(); ++j)
+    //     {
+    //         cout << "vertex: " << j->first << endl;
+    //         vector<pair<int, int>> vector1 = j->second;
+    //         for (auto k = vector1.begin(); k != vector1.end(); ++k)
+    //         {
+    //             cout << k->first << " length: " << k->second << endl;
+    //         }
+    //     }
+    // }
+    infile.close();
+}
+
+void printMapConstruction()
+{
+    // map<string, map<int, vector<pair<int, int>>>> data;
+
+    cout << "The Server A has constructed a list of " << data.size() << " maps : " << endl;
+    cout << "-------------------------------------------" << endl;
+    cout << "Map ID\tNum Vertices\tNum Edges" << endl;
+    cout << "-------------------------------------------" << endl;
     for (auto i = data.begin(); i != data.end(); ++i)
     {
-        cout << "map id : " << i->first << endl;
-        map<int, vector<pair<int, int>>> map1 = i->second;
-        for (auto j = map1.begin(); j != map1.end(); ++j)
+        cout << i->first << "\t" << i->second.size() << "\t\t";
+        map<int, vector<pair<int, int>>> temp = i->second;
+        int size = 0;
+        for (auto j = temp.begin(); j != temp.end(); ++j)
         {
-            cout << "vertex: " << j->first << endl;
-            vector<pair<int, int>> vector1 = j->second;
-            for (auto k = vector1.begin(); k != vector1.end(); ++k)
+            size += j->second.size();
+        }
+        cout << size / 2 << endl;
+    }
+    cout << "-------------------------------------------" << endl;
+}
+
+void startDijkstra(string mapId, int start)
+{
+
+    dist.clear();
+    for (auto j = data[mapId].begin(); j != data[mapId].end(); ++j)
+    {
+        dist[j->first] = INT32_MAX / 2;
+    }
+    set<pair<int, int>> st;
+    st.insert(make_pair(0, start));
+    dist[start] = 0;
+
+    while (!st.empty())
+    {
+        pair<int, int> now = *st.begin();
+        st.erase(st.begin());
+
+        int v = now.second;
+        int w = now.first;
+
+        const vector<pair<int, int>> &edges = data[mapId][v];
+        for (const pair<int, int> &to : edges)
+        {
+            if (w + to.second < dist[to.first])
             {
-                cout << k->first << " length: " << k->second << endl;
+                st.erase(make_pair(dist[to.first], to.first));
+                dist[to.first] = w + to.second;
+                st.insert(make_pair(dist[to.first], to.first));
             }
         }
     }
-    infile.close();
+}
+
+void printDijkstra()
+{
+    // map<int, int> dist;
+    cout << "The Server A has identified the following shortest paths : " << endl;
+    cout << "-----------------------------" << endl;
+    cout << "Destination\tMin Length" << endl;
+    cout << "-----------------------------" << endl;
+    for (auto j = dist.begin(); j != dist.end(); ++j)
+    {
+        cout << j->first << "\t\t" << j->second << endl;
+    }
+    cout << "-----------------------------" << endl;
+}
+
+int sendBack(string mapId)
+{
+
+    struct shortestPath
+    {
+        string dest;
+        string minLength;
+        string propag;
+        string trans;
+    };
+    struct shortestPath sp;
+    // map<string, vector<string>> parameters;
+
+    for (auto j = dist.begin(); j != dist.end(); ++j)
+    {
+        sp.dest += to_string(j->first);
+        sp.dest += " ";
+        sp.minLength += to_string(j->second);
+        sp.minLength += " ";
+    }
+
+    sp.propag = parameters[mapId].at(0);
+    sp.trans = parameters[mapId].at(1);
+
+
+
+    if ((numbytes = sendto(sockfd, &sp, MAXDATASIZE, 0,
+                           (struct sockaddr *)&their_addr, addr_len)) == -1)
+    {
+        perror("serverA:sendto");
+        exit(1);
+    }
+
+    return 0;
 }

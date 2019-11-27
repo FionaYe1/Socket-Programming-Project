@@ -11,6 +11,14 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <iostream>
+#include <sstream>
+#include <fstream>
+#include <vector>
+#include <iterator>
+#include <map>
+#include <set>
+#include <numeric>
+#include <utility>
 using namespace std;
 
 // 接收的人用自己的port来初始化getaddrinfo，发送的人用对方的port
@@ -20,8 +28,29 @@ using namespace std;
 #define SERVER_B_PORT "22997"
 
 #define BACKLOG 10   // how many pending connections queue will hold
-#define MAXDATASIZE 100 // max number of bytes we can get at once
+#define MAXDATASIZE 500 // max number of bytes we can get at once
 #define DEFAULT_IP "127.0.0.1"
+
+
+// public variables:
+int sockfd_TCP, new_fd_TCP, sockfd_UDP, numbytes; // listen on sock_fd, new connection on new_fd
+struct addrinfo hints_TCP, hints_UDP, *servinfo_TCP, *servinfo_UDP, *p;
+struct sockaddr_storage their_addr; // connector's address information
+struct addrinfo *info_UDP;
+socklen_t sin_size;
+struct sigaction sa;
+int yes = 1;
+char s[INET6_ADDRSTRLEN];
+int rv;
+char buf[MAXDATASIZE];
+socklen_t addr_len;
+
+
+// declare funtions:
+int connectA();
+int connectB();
+int initialTCP();
+int initialUDP();
 
 
 
@@ -45,20 +74,12 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(void)
 {
-    int sockfd, new_fd, numbytes; // listen on sock_fd, new connection on new_fd
-    struct addrinfo hints, *servinfo, *p;
-    struct sockaddr_storage their_addr; // connector's address information
-    socklen_t sin_size;
-    struct sigaction sa;
-    int yes=1;
-    char s[INET6_ADDRSTRLEN];
-    int rv;
-    char buf[MAXDATASIZE];
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;    /// 1
-    hints.ai_flags = AI_PASSIVE; // use my IP
+
+    memset(&hints_TCP, 0, sizeof hints_TCP);
+    hints_TCP.ai_family = AF_UNSPEC;
+    hints_TCP.ai_socktype = SOCK_STREAM;    /// TCP
+    hints_TCP.ai_flags = AI_PASSIVE; // use my IP
 
     if ((rv = getaddrinfo(NULL, AWS_TCP_PORT, &hints, &servinfo)) != 0)
     {
@@ -67,7 +88,7 @@ int main(void)
     }
 
     // loop through all the results and bind to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
+    for(p = servinfo_TCP; p != NULL; p = p->ai_next) {
         if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
             perror("server: socket");
             continue; 
@@ -129,11 +150,10 @@ int main(void)
                 exit(1);
             }
 
-            cout << "The AWS has received map ID " << param.map << ", start vertex " << param.vertexID 
-                 << " and file size " << param.fileSize << " from the client using TCP over port " 
-                 << param.fileSize  << endl;
+            cout << "The AWS has received map ID " << param.map << ", start vertex " << param.vertexID
+                 << " and file size " << param.fileSize << " from the client using TCP over port "
+                 << param.fileSize << endl;
 
-            
             exit(1);
         }
         close(new_fd);  // parent doesn't need this
@@ -142,4 +162,101 @@ int main(void)
         
     }
     return 0; 
+}
+
+int initialTCP(){
+
+}
+
+
+
+
+
+
+int connectA()
+{
+    if ((rv = getaddrinfo(DEFAULT_IP, SERVER_A_PORT, &hints, &servinfo)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+
+    // loop through all the results and make a socket
+    for (p = servinfo; p != NULL; p = p->ai_next)
+    {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+        {
+            perror("talker: socket");
+            continue;
+        }
+        // if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+        // {
+        //     close(sockfd);
+        //     perror("listener: bind");
+        //     continue;
+        // }
+        break;
+    }
+    if (p == NULL)
+    {
+        fprintf(stderr, "talker: failed to create socket\n");
+        return 2;
+    }
+    struct parameter
+    {
+        string map;
+        int vertexID;
+    };
+    struct parameter param;
+    // struct parameter *test;
+    // memset(test,0,sizeof(parameter));
+    // test->map = 'A';
+    // test->vertexID = 0;
+    param.map = 'A';
+    param.vertexID = 0;
+
+    if ((numbytes = sendto(sockfd, &param, sizeof(parameter), 0, p->ai_addr, p->ai_addrlen)) == -1)
+    {
+        perror("talker: sendto");
+        exit(1);
+    }
+
+    freeaddrinfo(servinfo);
+    printf("talker: sent %d bytes to %s\n", numbytes, "Server A");
+
+    addr_len = sizeof their_addr;
+
+    struct shortestPath
+    {
+        string dest;
+        string minLength;
+        string propag;
+        string trans;
+    };
+    struct shortestPath sp;
+    if ((numbytes = recvfrom(sockfd, &sp, MAXDATASIZE, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    {
+        perror("recvfrom");
+        exit(1);
+    }
+
+    cout << "The AWS has received shortest path from server A: " << endl;
+    cout << "-----------------------------" << endl;
+    cout << "Destination\tMin Length" << endl;
+    cout << "-----------------------------" << endl;
+
+    istringstream iss(sp.dest);
+    vector<string> dest((istream_iterator<string>(iss)), istream_iterator<std::string>());
+    istringstream iss2(sp.minLength);
+    vector<string> minLength((istream_iterator<string>(iss2)), istream_iterator<std::string>());
+    vector<string>::iterator j, i;
+
+    for (j = dest.begin(), i = minLength.begin(); j != dest.end() && i != minLength.end(); ++j, ++i)
+    {
+        cout << *j << "\t\t" << *i << endl;
+    }
+
+    cout << "-----------------------------" << endl;
+
+    return 0;
 }

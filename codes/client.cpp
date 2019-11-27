@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
         int fileSize;
     };
     struct parameter param;
+
     param.map = argv[1];
     string str1 = argv[2];
     string str2 = argv[3];
