@@ -76,10 +76,51 @@ int main(void)
 {
 
 
+
+
+    // while(1) {  // main accept() loop
+    //     sin_size = sizeof their_addr;
+    //     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+    //     if (new_fd == -1) {
+    //         perror("accept");
+    //         continue; 
+    //     }
+    //     inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
+    //     printf("server: got connection from %s\n", s);
+
+    //     if (!fork()) { // this is the child process
+    //         close(sockfd); // child doesn't need the listener
+    //         struct parameter
+    //         {
+    //             string map;
+    //             int vertexID;
+    //             int fileSize;
+    //         };
+    //         struct parameter param;
+    //         if ((numbytes = recv(new_fd, &param, sizeof(struct parameter), 0)) == -1) {
+    //             perror("recv");
+    //             exit(1);
+    //         }
+
+    //         cout << "The AWS has received map ID " << param.map << ", start vertex " << param.vertexID
+    //              << " and file size " << param.fileSize << " from the client using TCP over port "
+    //              << param.fileSize << endl;
+
+    //         exit(1);
+    //     }
+    //     close(new_fd_TCP);  // parent doesn't need this
+
+
+        
+    // }
+    return 0; 
+}
+
+int initialTCP(){
     memset(&hints_TCP, 0, sizeof hints_TCP);
     hints_TCP.ai_family = AF_UNSPEC;
-    hints_TCP.ai_socktype = SOCK_STREAM;    /// TCP
-    hints_TCP.ai_flags = AI_PASSIVE; // use my IP
+    hints_TCP.ai_socktype = SOCK_STREAM; /// TCP
+    hints_TCP.ai_flags = AI_PASSIVE;     // use my IP
 
     if ((rv = getaddrinfo(NULL, AWS_TCP_PORT, &hints, &servinfo)) != 0)
     {
@@ -88,103 +129,104 @@ int main(void)
     }
 
     // loop through all the results and bind to the first we can
-    for(p = servinfo_TCP; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+    for (p = servinfo_TCP; p != NULL; p = p->ai_next)
+    {
+        if ((sockfd_TCP = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+        {
             perror("server: socket");
-            continue; 
+            continue;
         }
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+        if (setsockopt(sockfd_TCP, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
+        {
             perror("setsockopt");
-            exit(1); 
+            exit(1);
         }
-        if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
+        if (::bind(sockfd_TCP, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            close(sockfd_TCP);
             perror("server: bind");
-            continue; 
+            continue;
         }
-        break; 
+        break;
     }
 
-    freeaddrinfo(servinfo); // all done with this structure
-    if (p == NULL)  {
+    freeaddrinfo(servinfo_TCP); // all done with this structure
+    if (p == NULL)
+    {
         fprintf(stderr, "server: failed to bind\n");
         exit(1);
     }
 
-    if (listen(sockfd, BACKLOG) == -1) {
+    if (listen(sockfd_TCP, BACKLOG) == -1)
+    {
         perror("listen");
         exit(1);
     }
-    
+
     sa.sa_handler = sigchld_handler; // reap all dead processes
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+    if (sigaction(SIGCHLD, &sa, NULL) == -1)
+    {
         perror("sigaction");
-        exit(1); 
+        exit(1);
     }
-    printf("server: waiting for connections...\n");
+
     cout << "The AWS is up and running." << endl;
-
-    while(1) {  // main accept() loop
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
-            continue; 
-        }
-        inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        printf("server: got connection from %s\n", s);
-
-        if (!fork()) { // this is the child process
-            close(sockfd); // child doesn't need the listener
-            struct parameter
-            {
-                string map;
-                int vertexID;
-                int fileSize;
-            };
-            struct parameter param;
-            if ((numbytes = recv(new_fd, &param, sizeof(struct parameter), 0)) == -1) {
-                perror("recv");
-                exit(1);
-            }
-
-            cout << "The AWS has received map ID " << param.map << ", start vertex " << param.vertexID
-                 << " and file size " << param.fileSize << " from the client using TCP over port "
-                 << param.fileSize << endl;
-
-            exit(1);
-        }
-        close(new_fd);  // parent doesn't need this
-
-
-        
-    }
-    return 0; 
-}
-
-int initialTCP(){
-
 }
 
 
-
-
-
-
-int connectA()
+int initialUDP()
 {
-    if ((rv = getaddrinfo(DEFAULT_IP, SERVER_A_PORT, &hints, &servinfo)) != 0)
+    memset(&hints_UDP, 0, sizeof hints_UDP);
+    hints_UDP.ai_family = AF_UNSPEC;
+    hints_UDP.ai_socktype = SOCK_DGRAM; // 1
+
+    if ((rv = getaddrinfo(DEFAULT_IP, SERVER_A_PORT, &hints_UDP, &servinfo_UDP)) != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
 
     // loop through all the results and make a socket
-    for (p = servinfo; p != NULL; p = p->ai_next)
+    for (p = servinfo_UDP; p != NULL; p = p->ai_next)
     {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+        if ((sockfd_UDP = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+        {
+            perror("talker: socket");
+            continue;
+        }
+        // if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+        // {
+        //     close(sockfd);
+        //     perror("listener: bind");
+        //     continue;
+        // }
+        break;
+    }
+    if (p == NULL)
+    {
+        fprintf(stderr, "talker: failed to create socket\n");
+        return 2;
+    }
+
+    return 0;
+}
+
+
+
+int connectA()
+{
+    if ((rv = getaddrinfo(DEFAULT_IP, SERVER_A_PORT, &hints_UDP, &servinfo_UDP)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+
+    // loop through all the results and make a socket
+    for (p = servinfo_UDP; p != NULL; p = p->ai_next)
+    {
+        if ((sockfd_UDP = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
         {
             perror("talker: socket");
             continue;
@@ -215,13 +257,13 @@ int connectA()
     param.map = 'A';
     param.vertexID = 0;
 
-    if ((numbytes = sendto(sockfd, &param, sizeof(parameter), 0, p->ai_addr, p->ai_addrlen)) == -1)
+    if ((numbytes = sendto(sockfd_UDP, &param, sizeof(parameter), 0, p->ai_addr, p->ai_addrlen)) == -1)
     {
         perror("talker: sendto");
         exit(1);
     }
 
-    freeaddrinfo(servinfo);
+    freeaddrinfo(servinfo_UDP);
     printf("talker: sent %d bytes to %s\n", numbytes, "Server A");
 
     addr_len = sizeof their_addr;
@@ -234,7 +276,7 @@ int connectA()
         string trans;
     };
     struct shortestPath sp;
-    if ((numbytes = recvfrom(sockfd, &sp, MAXDATASIZE, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    if ((numbytes = recvfrom(sockfd_UDP, &sp, MAXDATASIZE, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
         perror("recvfrom");
         exit(1);
@@ -257,6 +299,15 @@ int connectA()
     }
 
     cout << "-----------------------------" << endl;
+
+    return 0;
+}
+
+
+int connectB()
+{
+
+
 
     return 0;
 }

@@ -9,15 +9,42 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <iostream>
+#include <sstream>
+#include <fstream>
+#include <vector>
+#include <iterator>
+#include <map>
+#include <set>
+#include <numeric>
+#include <utility>
 using namespace std;
 
 #define DEFAULT_IP "127.0.0.1"
 #define SERVER_B_PORT "22997" // the port users will be connecting to
-#define MAXBUFLEN 100
+#define MAXDATASIZE 500
 
-/*
-** listener.c -- a datagram sockets "server" demo
-*/
+
+
+int sockfd;
+struct addrinfo hints, *servinfo, *p;
+int rv;
+int numbytes;
+struct sockaddr_storage their_addr;
+char buf[MAXDATASIZE];
+socklen_t addr_len;
+char s[INET6_ADDRSTRLEN];
+
+struct BtoAWS
+{
+    string dest;
+    double tt;
+    string tp;
+    string delay;
+};
+struct BtoAWS bta;
+
+int sendBack();
+int initialUDP();
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -29,16 +56,78 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6 *)sa)->sin6_addr);
 }
 
-int main(void)
+int main()
 {
-    int sockfd;
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
-    int numbytes;
-    struct sockaddr_storage their_addr;
-    char buf[MAXBUFLEN];
-    socklen_t addr_len;
-    char s[INET6_ADDRSTRLEN];
+    int status;
+    if ((status = initialUDP()) != 0)
+    {
+        return status;
+    }
+
+    cout << "The Server B is up and running using UDP on port " << SERVER_B_PORT << "." << endl;
+
+    addr_len = sizeof their_addr;
+
+    struct toServerB
+    {
+        string dest;
+        string minLength;
+        string propag;
+        string trans;
+        double fileSize;
+    };
+    struct toServerB tsb;
+
+    while(true)
+    {
+        if ((numbytes = recvfrom(sockfd, &tsb, MAXDATASIZE, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+        {
+            perror("recvfrom");
+            exit(1);
+        }
+
+        istringstream iss(tsb.dest);
+        vector<string> dest((istream_iterator<string>(iss)), istream_iterator<std::string>());
+        istringstream iss2(tsb.minLength);
+        vector<string> minLength((istream_iterator<string>(iss2)), istream_iterator<std::string>());
+
+        cout << "The Server B has finished the calculation of the delays : " << endl;
+        cout << "------------------------" << endl;
+        cout << "Destination\tDelay" << endl;
+        cout << "------------------------" << endl;
+
+        bta.dest = tsb.dest;
+
+        double tt = tsb.fileSize / stod(tsb.trans);
+        bta.tt = tt;
+
+        vector<string>::iterator j, i;
+        for (i = minLength.begin(), j = dest.begin(); i != minLength.end() && j != dest.end(); ++i, ++j)
+        {
+            double temp = stod(*i) / stod(tsb.propag);
+            cout << *j << "\t\t" << temp + tt << endl;
+            bta.tp += to_string(temp);
+            bta.tp += " ";
+            bta.delay += to_string(temp + tt);
+            bta.delay += " ";
+        }
+        cout << "------------------------" << endl;
+        if ((status = sendBack()) != 0)
+        {
+            perror("Can not send to AWS");
+        }
+        else
+        {
+            printf("The Server B has finished sending the output to AWS.\n");
+        }
+    }
+
+    close(sockfd);
+    return 0;
+}
+
+int initialUDP()
+{
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC; // set to AF_INET to force IPv4
     hints.ai_socktype = SOCK_DGRAM;
@@ -58,7 +147,7 @@ int main(void)
             perror("listener: socket");
             continue;
         }
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+        if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
         {
             close(sockfd);
             perror("listener: bind");
@@ -74,21 +163,17 @@ int main(void)
     }
 
     freeaddrinfo(servinfo);
-    printf("listener: waiting to recvfrom...\n");
-    cout << "The Server A is up and running using UDP on port " << MYPORT << "." << endl;
 
-    addr_len = sizeof their_addr;
+    return 0;
+}
 
-    if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN - 1, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+int sendBack()
+{
+    if ((numbytes = sendto(sockfd, &bta, MAXDATASIZE, 0,
+                           (struct sockaddr *)&their_addr, addr_len)) == -1)
     {
-        perror("recvfrom");
+        perror("serverB:sendto");
         exit(1);
     }
-
-    printf("listener: got packet from %s\n", inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s));
-    printf("listener: packet is %d bytes long\n", numbytes);
-    buf[numbytes] = '\0';
-    printf("listener: packet contains \"%s\"\n", buf);
-    close(sockfd);
     return 0;
 }
