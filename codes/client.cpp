@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
     {
         char map;
         int vertexID;
-        double fileSize;
+        long long fileSize;
     };
     struct parameter param;
 
@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
     string str1 = argv[2];
     string str2 = argv[3];
     param.vertexID = atoi(str1.c_str());
-    param.fileSize = stod(str2.c_str());
+    param.fileSize = atoll(str2.c_str());
 
     cout << " file size  " << param.fileSize << endl;
 

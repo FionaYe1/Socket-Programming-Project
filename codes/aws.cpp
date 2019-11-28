@@ -22,15 +22,14 @@
 using namespace std;
 
 // 接收的人用自己的port来初始化getaddrinfo，发送的人用对方的port
-#define AWS_TCP_PORT "24997"  // the port users will be connecting to
+#define AWS_TCP_PORT "24997" // the port users will be connecting to
 #define AWS_UDP_PORT "23997"
 #define SERVER_A_PORT "21997" // the port users will be connecting to
 #define SERVER_B_PORT "22997"
 
-#define BACKLOG 10   // how many pending connections queue will hold
+#define BACKLOG 10      // how many pending connections queue will hold
 #define MAXDATASIZE 500 // max number of bytes we can get at once
 #define localhost "127.0.0.1"
-
 
 // public variables:
 int sockfd_TCP, new_fd_TCP, sockfd_UDP, numbytes; // listen on sock_fd, new connection on new_fd
@@ -49,7 +48,7 @@ struct ParamFromClient
 {
     char map;
     int vertexID;
-    double fileSize;
+    long long fileSize;
 };
 struct ParamFromClient param_from_client;
 
@@ -68,7 +67,7 @@ struct toServerB
     char minLength[MAXDATASIZE];
     char propag[MAXDATASIZE];
     char trans[MAXDATASIZE];
-    double fileSize;
+    long long fileSize;
 };
 struct toServerB tsb;
 
@@ -81,33 +80,30 @@ struct BtoAWS
 };
 struct BtoAWS bta;
 
-
-
 // declare funtions:
 int connectA();
 int connectB();
 int initialTCP();
 int initialUDP();
 
-
-
 void sigchld_handler(int s)
 {
     // waitpid() might overwrite errno, so we save and restore it:
     int saved_errno = errno;
-    while(waitpid(-1, NULL, WNOHANG) > 0);
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
     errno = saved_errno;
 }
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
+    if (sa->sa_family == AF_INET)
+    {
+        return &(((struct sockaddr_in *)sa)->sin_addr);
+    }
+    return &(((struct sockaddr_in6 *)sa)->sin6_addr);
 }
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
 
 int main()
 {
@@ -117,22 +113,20 @@ int main()
         return status;
     }
 
-
-
-
-
-    while(1) {  // main accept() loop
+    while (1)
+    { // main accept() loop
         sin_size = sizeof their_addr;
         new_fd_TCP = accept(sockfd_TCP, (struct sockaddr *)&their_addr, &sin_size);
         if (new_fd_TCP == -1)
         {
             perror("accept");
-            continue; 
+            continue;
         }
         inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
         printf("server: got connection from %s\n", s);
 
-        if (!fork()) { // this is the child process
+        if (!fork())
+        {                      // this is the child process
             close(sockfd_TCP); // child doesn't need the listener
 
             if ((status = initialUDP()) != 0)
@@ -150,7 +144,6 @@ int main()
             cout << "The AWS has received map ID " << param_from_client.map << ", start vertex " << param_from_client.vertexID
                  << " and file size " << param_from_client.fileSize << " from the client using TCP over port "
                  << AWS_TCP_PORT << endl;
-
             connectA();
             connectB();
             struct AWS_To_Client
@@ -178,15 +171,13 @@ int main()
             cout << "The AWS has sent calculated delay to client using TCP over port " << AWS_TCP_PORT << "." << endl;
             exit(1);
         }
-        close(new_fd_TCP);  // parent doesn't need this
-
-
-        
+        close(new_fd_TCP); // parent doesn't need this
     }
-    return 0; 
+    return 0;
 }
 
-int initialTCP(){
+int initialTCP()
+{
     memset(&hints_TCP, 0, sizeof hints_TCP);
     hints_TCP.ai_family = AF_UNSPEC;
     hints_TCP.ai_socktype = SOCK_STREAM; /// TCP
@@ -246,7 +237,6 @@ int initialTCP(){
     return 0;
 }
 
-
 int initialUDP()
 {
     memset(&hints_UDP, 0, sizeof hints_UDP);
@@ -284,8 +274,6 @@ int initialUDP()
     return 0;
 }
 
-
-
 int connectA()
 {
     if ((rv = getaddrinfo(localhost, SERVER_A_PORT, &hints_UDP, &servinfo_UDP)) != 0)
@@ -314,7 +302,6 @@ int connectA()
     // memset(test,0,sizeof(parameter));
     // test->map = 'A';
     // test->vertexID = 0;
-
 
     if ((numbytes = sendto(sockfd_UDP, &param_from_client, sizeof(ParamFromClient), 0, p->ai_addr, p->ai_addrlen)) == -1)
     {
@@ -354,7 +341,6 @@ int connectA()
     return 0;
 }
 
-
 int connectB()
 {
 
@@ -363,7 +349,6 @@ int connectB()
     strcpy(tsb.propag, sp.propag);
     strcpy(tsb.trans, sp.trans);
     tsb.fileSize = param_from_client.fileSize;
-
     if ((rv = getaddrinfo(localhost, SERVER_B_PORT, &hints_UDP, &servinfo_UDP)) != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -385,7 +370,6 @@ int connectB()
         fprintf(stderr, "talker: failed to create socket\n");
         return 2;
     }
-
     if ((numbytes = sendto(sockfd_UDP, &tsb, sizeof(toServerB), 0, p->ai_addr, p->ai_addrlen)) == -1)
     {
         perror("talker: sendto");
@@ -427,7 +411,7 @@ int connectB()
         printf("%.2f\n", stod(*k));
     }
     cout << "--------------------------------------------" << endl;
-    
+
     close(sockfd_UDP);
 
     return 0;

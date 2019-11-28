@@ -74,7 +74,7 @@ int main()
         char minLength[MAXDATASIZE];
         char propag[MAXDATASIZE];
         char trans[MAXDATASIZE];
-        double fileSize;
+        long long fileSize;
     };
     struct toServerB tsb;
 
@@ -97,8 +97,7 @@ int main()
         cout << "------------------------" << endl;
 
         strcpy(bta.dest, tsb.dest);
-
-        double tt = tsb.fileSize / stod(tsb.trans);
+        double tt = tsb.fileSize / (8*stod(tsb.trans));
         bta.tt = tt;
         string tp_s, delay_s; 
         vector<string>::iterator j, i;

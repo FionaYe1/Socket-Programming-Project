@@ -63,7 +63,7 @@ int main(int argc, char const *argv[])
     {
         char map;
         int vertexID;
-        int fileSize;
+        long long fileSize;
     };
     struct parameter param;
 
@@ -268,6 +268,7 @@ void startDijkstra(char mapId, int start)
             }
         }
     }
+    dist.erase(start);
 }
 
 void printDijkstra()
