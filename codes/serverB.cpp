@@ -36,10 +36,10 @@ char s[INET6_ADDRSTRLEN];
 
 struct BtoAWS
 {
-    string dest;
+    char dest[MAXDATASIZE];
     double tt;
-    string tp;
-    string delay;
+    char tp[MAXDATASIZE];
+    char delay[MAXDATASIZE];
 };
 struct BtoAWS bta;
 
@@ -70,17 +70,17 @@ int main()
 
     struct toServerB
     {
-        string dest;
-        string minLength;
-        string propag;
-        string trans;
+        char dest[MAXDATASIZE];
+        char minLength[MAXDATASIZE];
+        char propag[MAXDATASIZE];
+        char trans[MAXDATASIZE];
         double fileSize;
     };
     struct toServerB tsb;
 
     while(true)
     {
-        if ((numbytes = recvfrom(sockfd, &tsb, MAXDATASIZE, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+        if ((numbytes = recvfrom(sockfd, &tsb, sizeof(toServerB), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
             perror("recvfrom");
             exit(1);
@@ -96,22 +96,28 @@ int main()
         cout << "Destination\tDelay" << endl;
         cout << "------------------------" << endl;
 
-        bta.dest = tsb.dest;
+        strcpy(bta.dest, tsb.dest);
 
         double tt = tsb.fileSize / stod(tsb.trans);
         bta.tt = tt;
-
+        string tp_s, delay_s; 
         vector<string>::iterator j, i;
         for (i = minLength.begin(), j = dest.begin(); i != minLength.end() && j != dest.end(); ++i, ++j)
         {
             double temp = stod(*i) / stod(tsb.propag);
-            cout << *j << "\t\t" << temp + tt << endl;
-            bta.tp += to_string(temp);
-            bta.tp += " ";
-            bta.delay += to_string(temp + tt);
-            bta.delay += " ";
+            cout << *j << "\t\t";
+            printf("%.2f\n",temp + tt);
+            tp_s += to_string(temp);
+            tp_s += " ";
+            delay_s += to_string(temp + tt);
+            delay_s += " ";
         }
         cout << "------------------------" << endl;
+
+        strcpy(bta.delay, delay_s.c_str());
+        strcpy(bta.tp, tp_s.c_str());
+
+        // cout << "test : !!!  " << bta.delay << "   " << bta.tp << endl;
         if ((status = sendBack()) != 0)
         {
             perror("Can not send to AWS");
@@ -169,7 +175,7 @@ int initialUDP()
 
 int sendBack()
 {
-    if ((numbytes = sendto(sockfd, &bta, MAXDATASIZE, 0,
+    if ((numbytes = sendto(sockfd, &bta, sizeof(struct BtoAWS), 0,
                            (struct sockaddr *)&their_addr, addr_len)) == -1)
     {
         perror("serverB:sendto");

@@ -122,7 +122,7 @@ int initialTCP(){
     hints_TCP.ai_socktype = SOCK_STREAM; /// TCP
     hints_TCP.ai_flags = AI_PASSIVE;     // use my IP
 
-    if ((rv = getaddrinfo(NULL, AWS_TCP_PORT, &hints, &servinfo)) != 0)
+    if ((rv = getaddrinfo(NULL, AWS_TCP_PORT, &hints_TCP, &servinfo_TCP)) != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -246,7 +246,7 @@ int connectA()
     }
     struct parameter
     {
-        string map;
+        char map;
         int vertexID;
     };
     struct parameter param;
@@ -270,13 +270,13 @@ int connectA()
 
     struct shortestPath
     {
-        string dest;
-        string minLength;
-        string propag;
-        string trans;
+        char dest[MAXDATASIZE];
+        char minLength[MAXDATASIZE];
+        char propag[MAXDATASIZE];
+        char trans[MAXDATASIZE];
     };
     struct shortestPath sp;
-    if ((numbytes = recvfrom(sockfd_UDP, &sp, MAXDATASIZE, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    if ((numbytes = recvfrom(sockfd_UDP, &sp, sizeof(shortestPath), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
         perror("recvfrom");
         exit(1);

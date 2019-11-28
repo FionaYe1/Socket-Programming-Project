@@ -37,19 +37,19 @@ socklen_t addr_len;
 char s[INET6_ADDRSTRLEN];
 struct shortestPath
 {
-    string dest;
-    string minLength;
-    string propag;
-    string trans;
+    char dest[MAXDATASIZE];
+    char minLength[MAXDATASIZE];
+    char propag[MAXDATASIZE];
+    char trans[MAXDATASIZE];
 };
 struct shortestPath sp;
 
 struct BtoAWS
 {
-    string dest;
+    char dest[MAXDATASIZE];
     double tt;
-    string tp;
-    string delay;
+    char tp[MAXDATASIZE];
+    char delay[MAXDATASIZE];
 };
 struct BtoAWS bta;
 
@@ -71,17 +71,17 @@ int main(int argc, char *argv[])
 
     struct toServerB
     {
-        string dest;
-        string minLength;
-        string propag;
-        string trans;
+        char dest[MAXDATASIZE];
+        char minLength[MAXDATASIZE];
+        char propag[MAXDATASIZE];
+        char trans[MAXDATASIZE];
         double fileSize;
     };
     struct toServerB tsb;
-    tsb.dest = sp.dest;
-    tsb.minLength = sp.minLength;
-    tsb.propag = sp.propag;
-    tsb.trans = sp.trans;
+    strcpy(tsb.dest, sp.dest);
+    strcpy(tsb.minLength, sp.minLength);
+    strcpy(tsb.propag, sp.propag);
+    strcpy(tsb.trans, sp.trans);
     tsb.fileSize = 10;
 
     if ((rv = getaddrinfo(localhost, SERVER_B_PORT, &hints, &servinfo)) != 0)
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
         return 2;
     }
 
-    if ((numbytes = sendto(sockfd, &tsb, MAXDATASIZE, 0, p->ai_addr, p->ai_addrlen)) == -1)
+    if ((numbytes = sendto(sockfd, &tsb, sizeof(toServerB), 0, p->ai_addr, p->ai_addrlen)) == -1)
     {
         perror("talker: sendto");
         exit(1);
@@ -119,9 +119,8 @@ int main(int argc, char *argv[])
     addr_len = sizeof their_addr;
 
 
-    memset(&bta,0,sizeof(BtoAWS));
     
-    if ((numbytes = recvfrom(sockfd, &bta, MAXDATASIZE, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    if ((numbytes = recvfrom(sockfd, &bta, sizeof(struct BtoAWS), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
         perror("recvfrom");
         exit(1);
@@ -132,7 +131,6 @@ int main(int argc, char *argv[])
     cout << "Destination\tTt\tTp\tDelay" << endl;
     cout << "--------------------------------------------" << endl;
 
-    cout << "test:  !   " << bta.tp << "  " << bta.delay << endl;
 
     istringstream issT(bta.dest);
     vector<string> dest1((istream_iterator<string>(issT)), istream_iterator<std::string>());
@@ -141,13 +139,16 @@ int main(int argc, char *argv[])
     istringstream issT3(bta.delay);
     vector<string> delay((istream_iterator<string>(issT3)), istream_iterator<std::string>());
     
-    // vector<string>::iterator j, i, k;
+    vector<string>::iterator j, i, k;
 
-    // for (j = dest.begin(), i = tp.begin(), k = delay.begin(); 
-    // j != dest.end() && i != tp.end() && k != delay.end(); ++j, ++i, ++k)
-    // {
-    //     cout << *j << "\t\t" << bta.tt << "\t" << *i << "\t" << *k << endl;
-    // }
+    for (j = dest1.begin(), i = tp.begin(), k = delay.begin(); 
+    j != dest1.end() && i != tp.end() && k != delay.end(); ++j, ++i, ++k)
+    {
+        cout << *j << "\t\t";
+        printf("%.2f\t", bta.tt);
+        printf("%.2f\t", stod(*i));
+        printf("%.2f\n", stod(*k));
+    }
     cout << "--------------------------------------------" << endl;
    // cout << "The AWS has sent calculated delay to client using TCP over port " << SERVER_B_PORT << "." << endl;
     close(sockfd);
@@ -179,7 +180,7 @@ int connectA()
     }
     struct parameter
     {
-        string map;
+        char map;
         int vertexID;
     };
     struct parameter param;
@@ -201,7 +202,7 @@ int connectA()
 
     addr_len = sizeof their_addr;
 
-    if ((numbytes = recvfrom(sockfd, &sp, MAXDATASIZE, 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    if ((numbytes = recvfrom(sockfd, &sp, sizeof(shortestPath), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
         perror("recvfrom");
         exit(1);
@@ -211,6 +212,8 @@ int connectA()
     cout << "-----------------------------" << endl;
     cout << "Destination\tMin Length" << endl;
     cout << "-----------------------------" << endl;
+
+   // cout << "   " << sp.minLength << endl;
 
     istringstream iss(sp.dest);
     vector<string> dest((istream_iterator<string>(iss)), istream_iterator<std::string>());

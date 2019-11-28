@@ -77,13 +77,13 @@ int main(int argc, char *argv[])
 
     struct parameter
     {
-        string map;
+        char map;
         int vertexID;
         int fileSize;
     };
     struct parameter param;
 
-    param.map = argv[1];
+    param.map = argv[1][0];
     string str1 = argv[2];
     string str2 = argv[3];
     param.vertexID = atoi(str1.c_str());

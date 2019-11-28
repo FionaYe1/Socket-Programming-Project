@@ -26,14 +26,14 @@ using namespace std;
 // state the functions:
 int initialUDP();
 void storeDate();
-void startDijkstra(string mapId, int start);
+void startDijkstra(char mapId, int start);
 void printMapConstruction();
 void printDijkstra();
-int sendBack(string mapId);
+int sendBack(char mapId);
 
 // public variables:
-map<string, map<int, vector<pair<int, int>>>> data;
-map<string, vector<string>> parameters;
+map<char, map<int, vector<pair<int, int>>>> data;
+map<char, vector<string>> parameters;
 map<int, int> dist;
 
 int sockfd;
@@ -61,7 +61,7 @@ int main(int argc, char const *argv[])
 
     struct parameter
     {
-        string map;
+        char map;
         int vertexID;
     };
     struct parameter param;
@@ -146,7 +146,7 @@ void storeDate()
     }
 
     string line;
-    string mapID;
+    char mapID;
     while (infile >> line)
     {
         if (!isdigit(line[0]))
@@ -233,7 +233,7 @@ void printMapConstruction()
     cout << "-------------------------------------------" << endl;
 }
 
-void startDijkstra(string mapId, int start)
+void startDijkstra(char mapId, int start)
 {
 
     dist.clear();
@@ -280,33 +280,33 @@ void printDijkstra()
     cout << "-----------------------------" << endl;
 }
 
-int sendBack(string mapId)
+int sendBack(char mapId)
 {
 
     struct shortestPath
     {
-        string dest;
-        string minLength;
-        string propag;
-        string trans;
+        char dest[MAXDATASIZE];
+        char minLength[MAXDATASIZE];
+        char propag[MAXDATASIZE];
+        char trans[MAXDATASIZE];
     };
     struct shortestPath sp;
     // map<string, vector<string>> parameters;
 
+    string dest_s, minLength_s;
     for (auto j = dist.begin(); j != dist.end(); ++j)
     {
-        sp.dest += to_string(j->first);
-        sp.dest += " ";
-        sp.minLength += to_string(j->second);
-        sp.minLength += " ";
+        dest_s += to_string(j->first);
+        dest_s += " ";
+        minLength_s += to_string(j->second);
+        minLength_s += " ";
     }
+    strcpy(sp.dest, dest_s.c_str());
+    strcpy(sp.minLength, minLength_s.c_str());
+    strcpy(sp.propag, parameters[mapId].at(0).c_str());
+    strcpy(sp.trans, parameters[mapId].at(1).c_str());
 
-    sp.propag = parameters[mapId].at(0);
-    sp.trans = parameters[mapId].at(1);
-
-
-
-    if ((numbytes = sendto(sockfd, &sp, MAXDATASIZE, 0,
+    if ((numbytes = sendto(sockfd, &sp, sizeof(shortestPath), 0,
                            (struct sockaddr *)&their_addr, addr_len)) == -1)
     {
         perror("serverA:sendto");

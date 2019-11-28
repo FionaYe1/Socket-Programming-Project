@@ -45,14 +45,26 @@ int main()
     //     cout << *j << "            " << endl;
     // }
 
-    string text = "Let me split this into words";
+    // string text = "Let me split this into words";
 
-    istringstream iss(text);
-    vector<string> results((istream_iterator<string>(iss)), istream_iterator<std::string>());
+    // istringstream iss(text);
+    // vector<string> results((istream_iterator<string>(iss)), istream_iterator<std::string>());
 
-    for (auto j = results.begin(); j != results.end(); ++j)
-    {
-        cout << *j << "            " << endl;
-    }
+    // for (auto j = results.begin(); j != results.end(); ++j)
+    // {
+    //     cout << *j << "            " << endl;
+    // }
+
+    // char c[1000];
+    // string s = "helloworld";
+    // s.copy(c, s.size()+1);
+
+    // cout << c << endl;
+
+    char c[] = {'a', 'b', 'd', ' ', 'c', ' ', 'd', 'e','3','2', '6', 'e','\0'};
+    string s;
+    s = c;
+    cout << s << endl;
+
     return 0;
 }
