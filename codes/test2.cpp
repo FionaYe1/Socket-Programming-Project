@@ -58,13 +58,31 @@ int main()
     // char c[1000];
     // string s = "helloworld";
     // s.copy(c, s.size()+1);
+    // strcpy(c, s.c_str());
 
     // cout << c << endl;
 
-    char c[] = {'a', 'b', 'd', ' ', 'c', ' ', 'd', 'e','3','2', '6', 'e','\0'};
-    string s;
-    s = c;
-    cout << s << endl;
+    // char c[] = {'a', 'b', 'd', ' ', 'c', ' ', 'd', 'e','3','2', '6', 'e','\0'};
+    // string s;
+    // s = c;
+    // cout << s << endl;
 
+    ifstream infile;
+    string fileName = "map.txt";
+    infile.open(fileName.c_str());
+
+    if (!infile)
+    {
+        cerr << "Unable to open file map.txt";
+        exit(1);
+    }
+
+    string line;
+
+    while (infile >> line)
+    {
+        cout << line << endl;
+        
+    }
     return 0;
 }

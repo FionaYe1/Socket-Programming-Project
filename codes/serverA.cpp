@@ -63,6 +63,7 @@ int main(int argc, char const *argv[])
     {
         char map;
         int vertexID;
+        int fileSize;
     };
     struct parameter param;
 
@@ -163,9 +164,12 @@ void storeDate()
         else
         {
             int head = stoi(line);
+            cout << line;
             infile >> line;
+            cout << line;
             int tail = stoi(line);
             infile >> line;
+            cout << line;
             int length = stoi(line);
 
             auto it = nodes.find(head);

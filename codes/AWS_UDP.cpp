@@ -213,8 +213,6 @@ int connectA()
     cout << "Destination\tMin Length" << endl;
     cout << "-----------------------------" << endl;
 
-   // cout << "   " << sp.minLength << endl;
-
     istringstream iss(sp.dest);
     vector<string> dest((istream_iterator<string>(iss)), istream_iterator<std::string>());
     istringstream iss2(sp.minLength);

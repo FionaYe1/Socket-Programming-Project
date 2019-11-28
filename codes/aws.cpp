@@ -29,7 +29,7 @@ using namespace std;
 
 #define BACKLOG 10   // how many pending connections queue will hold
 #define MAXDATASIZE 500 // max number of bytes we can get at once
-#define DEFAULT_IP "127.0.0.1"
+#define localhost "127.0.0.1"
 
 
 // public variables:
@@ -44,6 +44,43 @@ char s[INET6_ADDRSTRLEN];
 int rv;
 char buf[MAXDATASIZE];
 socklen_t addr_len;
+
+struct ParamFromClient
+{
+    char map;
+    int vertexID;
+    double fileSize;
+};
+struct ParamFromClient param_from_client;
+
+struct shortestPath
+{
+    char dest[MAXDATASIZE];
+    char minLength[MAXDATASIZE];
+    char propag[MAXDATASIZE];
+    char trans[MAXDATASIZE];
+};
+struct shortestPath sp;
+
+struct toServerB
+{
+    char dest[MAXDATASIZE];
+    char minLength[MAXDATASIZE];
+    char propag[MAXDATASIZE];
+    char trans[MAXDATASIZE];
+    double fileSize;
+};
+struct toServerB tsb;
+
+struct BtoAWS
+{
+    char dest[MAXDATASIZE];
+    double tt;
+    char tp[MAXDATASIZE];
+    char delay[MAXDATASIZE];
+};
+struct BtoAWS bta;
+
 
 
 // declare funtions:
@@ -72,47 +109,80 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 
-int main(void)
+int main()
 {
+    int status;
+    if ((status = initialTCP()) != 0)
+    {
+        return status;
+    }
 
 
 
 
-    // while(1) {  // main accept() loop
-    //     sin_size = sizeof their_addr;
-    //     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-    //     if (new_fd == -1) {
-    //         perror("accept");
-    //         continue; 
-    //     }
-    //     inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-    //     printf("server: got connection from %s\n", s);
 
-    //     if (!fork()) { // this is the child process
-    //         close(sockfd); // child doesn't need the listener
-    //         struct parameter
-    //         {
-    //             string map;
-    //             int vertexID;
-    //             int fileSize;
-    //         };
-    //         struct parameter param;
-    //         if ((numbytes = recv(new_fd, &param, sizeof(struct parameter), 0)) == -1) {
-    //             perror("recv");
-    //             exit(1);
-    //         }
+    while(1) {  // main accept() loop
+        sin_size = sizeof their_addr;
+        new_fd_TCP = accept(sockfd_TCP, (struct sockaddr *)&their_addr, &sin_size);
+        if (new_fd_TCP == -1)
+        {
+            perror("accept");
+            continue; 
+        }
+        inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
+        printf("server: got connection from %s\n", s);
 
-    //         cout << "The AWS has received map ID " << param.map << ", start vertex " << param.vertexID
-    //              << " and file size " << param.fileSize << " from the client using TCP over port "
-    //              << param.fileSize << endl;
+        if (!fork()) { // this is the child process
+            close(sockfd_TCP); // child doesn't need the listener
 
-    //         exit(1);
-    //     }
-    //     close(new_fd_TCP);  // parent doesn't need this
+            if ((status = initialUDP()) != 0)
+            {
+                printf("server: UDP start failed!\n");
+                return status;
+            }
+
+            if ((numbytes = recv(new_fd_TCP, &param_from_client, sizeof(struct ParamFromClient), 0)) == -1)
+            {
+                perror("recv");
+                exit(1);
+            }
+
+            cout << "The AWS has received map ID " << param_from_client.map << ", start vertex " << param_from_client.vertexID
+                 << " and file size " << param_from_client.fileSize << " from the client using TCP over port "
+                 << AWS_TCP_PORT << endl;
+
+            connectA();
+            connectB();
+            struct AWS_To_Client
+            {
+                char dest[MAXDATASIZE];
+                char minLength[MAXDATASIZE];
+                double tt;
+                char tp[MAXDATASIZE];
+                char delay[MAXDATASIZE];
+            };
+            struct AWS_To_Client aws_to_client;
+
+            aws_to_client.tt = bta.tt;
+            strcpy(aws_to_client.dest, bta.dest);
+            strcpy(aws_to_client.minLength, tsb.minLength);
+            strcpy(aws_to_client.tp, bta.tp);
+            strcpy(aws_to_client.delay, bta.delay);
+
+            if ((send(new_fd_TCP, &aws_to_client, sizeof(AWS_To_Client), 0) == -1))
+            {
+                perror("recv");
+                exit(1);
+            }
+            close(sockfd_UDP);
+            cout << "The AWS has sent calculated delay to client using TCP over port " << AWS_TCP_PORT << "." << endl;
+            exit(1);
+        }
+        close(new_fd_TCP);  // parent doesn't need this
 
 
         
-    // }
+    }
     return 0; 
 }
 
@@ -122,7 +192,7 @@ int initialTCP(){
     hints_TCP.ai_socktype = SOCK_STREAM; /// TCP
     hints_TCP.ai_flags = AI_PASSIVE;     // use my IP
 
-    if ((rv = getaddrinfo(NULL, AWS_TCP_PORT, &hints_TCP, &servinfo_TCP)) != 0)
+    if ((rv = getaddrinfo(localhost, AWS_TCP_PORT, &hints_TCP, &servinfo_TCP)) != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -173,6 +243,7 @@ int initialTCP(){
     }
 
     cout << "The AWS is up and running." << endl;
+    return 0;
 }
 
 
@@ -182,7 +253,7 @@ int initialUDP()
     hints_UDP.ai_family = AF_UNSPEC;
     hints_UDP.ai_socktype = SOCK_DGRAM; // 1
 
-    if ((rv = getaddrinfo(DEFAULT_IP, SERVER_A_PORT, &hints_UDP, &servinfo_UDP)) != 0)
+    if ((rv = getaddrinfo(localhost, AWS_UDP_PORT, &hints_UDP, &servinfo_UDP)) != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -217,7 +288,7 @@ int initialUDP()
 
 int connectA()
 {
-    if ((rv = getaddrinfo(DEFAULT_IP, SERVER_A_PORT, &hints_UDP, &servinfo_UDP)) != 0)
+    if ((rv = getaddrinfo(localhost, SERVER_A_PORT, &hints_UDP, &servinfo_UDP)) != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -231,12 +302,6 @@ int connectA()
             perror("talker: socket");
             continue;
         }
-        // if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
-        // {
-        //     close(sockfd);
-        //     perror("listener: bind");
-        //     continue;
-        // }
         break;
     }
     if (p == NULL)
@@ -244,20 +309,14 @@ int connectA()
         fprintf(stderr, "talker: failed to create socket\n");
         return 2;
     }
-    struct parameter
-    {
-        char map;
-        int vertexID;
-    };
-    struct parameter param;
+
     // struct parameter *test;
     // memset(test,0,sizeof(parameter));
     // test->map = 'A';
     // test->vertexID = 0;
-    param.map = 'A';
-    param.vertexID = 0;
 
-    if ((numbytes = sendto(sockfd_UDP, &param, sizeof(parameter), 0, p->ai_addr, p->ai_addrlen)) == -1)
+
+    if ((numbytes = sendto(sockfd_UDP, &param_from_client, sizeof(ParamFromClient), 0, p->ai_addr, p->ai_addrlen)) == -1)
     {
         perror("talker: sendto");
         exit(1);
@@ -268,14 +327,6 @@ int connectA()
 
     addr_len = sizeof their_addr;
 
-    struct shortestPath
-    {
-        char dest[MAXDATASIZE];
-        char minLength[MAXDATASIZE];
-        char propag[MAXDATASIZE];
-        char trans[MAXDATASIZE];
-    };
-    struct shortestPath sp;
     if ((numbytes = recvfrom(sockfd_UDP, &sp, sizeof(shortestPath), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
         perror("recvfrom");
@@ -307,7 +358,77 @@ int connectA()
 int connectB()
 {
 
+    strcpy(tsb.dest, sp.dest);
+    strcpy(tsb.minLength, sp.minLength);
+    strcpy(tsb.propag, sp.propag);
+    strcpy(tsb.trans, sp.trans);
+    tsb.fileSize = param_from_client.fileSize;
 
+    if ((rv = getaddrinfo(localhost, SERVER_B_PORT, &hints_UDP, &servinfo_UDP)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+
+    // loop through all the results and make a socket
+    for (p = servinfo_UDP; p != NULL; p = p->ai_next)
+    {
+        if ((sockfd_UDP = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+        {
+            perror("talker: socket");
+            continue;
+        }
+        break;
+    }
+    if (p == NULL)
+    {
+        fprintf(stderr, "talker: failed to create socket\n");
+        return 2;
+    }
+
+    if ((numbytes = sendto(sockfd_UDP, &tsb, sizeof(toServerB), 0, p->ai_addr, p->ai_addrlen)) == -1)
+    {
+        perror("talker: sendto");
+        exit(1);
+    }
+
+    freeaddrinfo(servinfo_UDP);
+
+    cout << "The AWS has sent path length, propagation speed and transmission speed to server B using UDP over port " << SERVER_B_PORT << "." << endl;
+
+    addr_len = sizeof their_addr;
+
+    if ((numbytes = recvfrom(sockfd_UDP, &bta, sizeof(struct BtoAWS), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    {
+        perror("recvfrom");
+        exit(1);
+    }
+
+    cout << "The AWS has received delays from server B: " << endl;
+    cout << "--------------------------------------------" << endl;
+    cout << "Destination\tTt\tTp\tDelay" << endl;
+    cout << "--------------------------------------------" << endl;
+
+    istringstream issT(bta.dest);
+    vector<string> dest1((istream_iterator<string>(issT)), istream_iterator<std::string>());
+    istringstream issT2(bta.tp);
+    vector<string> tp((istream_iterator<string>(issT2)), istream_iterator<std::string>());
+    istringstream issT3(bta.delay);
+    vector<string> delay((istream_iterator<string>(issT3)), istream_iterator<std::string>());
+
+    vector<string>::iterator j, i, k;
+
+    for (j = dest1.begin(), i = tp.begin(), k = delay.begin();
+         j != dest1.end() && i != tp.end() && k != delay.end(); ++j, ++i, ++k)
+    {
+        cout << *j << "\t\t";
+        printf("%.2f\t", bta.tt);
+        printf("%.2f\t", stod(*i));
+        printf("%.2f\n", stod(*k));
+    }
+    cout << "--------------------------------------------" << endl;
+    
+    close(sockfd_UDP);
 
     return 0;
 }

@@ -91,7 +91,7 @@ int main()
         istringstream iss2(tsb.minLength);
         vector<string> minLength((istream_iterator<string>(iss2)), istream_iterator<std::string>());
 
-        cout << "The Server B has finished the calculation of the delays : " << endl;
+        cout << "The Server B has finished the calculation of the delays: " << endl;
         cout << "------------------------" << endl;
         cout << "Destination\tDelay" << endl;
         cout << "------------------------" << endl;
