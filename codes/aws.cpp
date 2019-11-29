@@ -21,7 +21,7 @@
 #include <utility>
 using namespace std;
 
-// 接收的人用自己的port来初始化getaddrinfo，发送的人用对方的port
+
 #define AWS_TCP_PORT "24997" // the port users will be connecting to
 #define AWS_UDP_PORT "23997"
 #define SERVER_A_PORT "21997" // the port users will be connecting to
