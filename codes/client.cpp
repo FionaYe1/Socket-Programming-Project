@@ -23,8 +23,9 @@ using namespace std;
 
 #define localhost "127.0.0.1"
 #define AWS_TCP_PORT "24997" // the port client will be connecting to
-#define MAXDATASIZE 500 // max number of bytes we can get at once
+#define MAXDATASIZE 500      // max number of bytes we can get at once
 
+// cited from beej
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -37,8 +38,8 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char *argv[])
 {
+    // initial the TCP, which cited from beej
     int sockfd;
-    
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
@@ -77,8 +78,7 @@ int main(int argc, char *argv[])
     }
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
 
-    printf("client: connecting to %s\n", s);
-    freeaddrinfo(servinfo); // all done with this structure
+    freeaddrinfo(servinfo);         // all done with this structure
     cout << "The client is up and running." << endl;
 
     struct parameter
@@ -89,36 +89,35 @@ int main(int argc, char *argv[])
     };
     struct parameter param;
 
-    
+    // store the input
     param.map = argv[1][0];
     string str1 = argv[2];
     string str2 = argv[3];
     param.vertexID = atoi(str1.c_str());
     param.fileSize = atoll(str2.c_str());
 
-    cout << " file size  " << param.fileSize << endl;
-
-
+    // send the information to the AWS
     if ((send(sockfd, &param, sizeof(struct parameter), 0)) == -1)
     {
         perror("recv");
         exit(1);
     }
 
-    cout << "The client has sent query to AWS using TCP: start vertex " 
-    << param.vertexID << "; map " << param.map 
-    << "; file size " << argv[3] << "." << endl;
+    cout << "The client has sent query to AWS using TCP: start vertex "
+         << param.vertexID << "; map " << param.map
+         << "; file size " << argv[3] << "." << endl;
 
     struct AWS_To_Client
     {
-        char dest[MAXDATASIZE];
-        char minLength[MAXDATASIZE];
-        double tt;
-        char tp[MAXDATASIZE];
-        char delay[MAXDATASIZE];
+        char dest[MAXDATASIZE];      // destination vertices, which seperates each data by space
+        char minLength[MAXDATASIZE]; // minimum length, which seperates each data by space
+        double tt;                   // transmission time
+        char tp[MAXDATASIZE];        // propagation time, which seperates each data by space
+        char delay[MAXDATASIZE];     // delat time, which seperates each data by space
     };
     struct AWS_To_Client aws_to_client;
 
+    // receive the information from the AWS
     if ((recv(sockfd, &aws_to_client, sizeof(AWS_To_Client), 0)) == -1)
     {
         perror("recv");
@@ -126,10 +125,10 @@ int main(int argc, char *argv[])
     }
     cout << "The client has received results from AWS:" << endl;
     cout << "----------------------------------------------" << endl;
-    cout << "Destination\tMin Length\tTt\tTp\tDelay\n" << endl;
+    cout << "Destination\tMin Length\tTt\tTp\tDelay" << endl;
     cout << "----------------------------------------------" << endl;
 
-
+    // split the data by space, and store them into the vector
     istringstream iss(aws_to_client.dest);
     vector<string> dest((istream_iterator<string>(iss)), istream_iterator<std::string>());
     istringstream iss2(aws_to_client.minLength);
@@ -139,9 +138,10 @@ int main(int argc, char *argv[])
     istringstream iss4(aws_to_client.delay);
     vector<string> delay((istream_iterator<string>(iss4)), istream_iterator<std::string>());
 
+    // print out the necessary information, and round the results to the 2nd decimal point
     vector<string>::iterator j, i, k, l;
-    for (i = dest.begin(), j = minLength.begin(), k = tp.begin(), l = delay.begin(); 
-         i != dest.end() && j != minLength.end() && k != tp.end() && l != delay.end(); 
+    for (i = dest.begin(), j = minLength.begin(), k = tp.begin(), l = delay.begin();
+         i != dest.end() && j != minLength.end() && k != tp.end() && l != delay.end();
          ++i, ++j, ++k, ++l)
     {
 

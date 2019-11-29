@@ -23,7 +23,7 @@ using namespace std;
 #define SERVER_A_PORT "21997" // the port users will be connecting to
 #define MAXDATASIZE 500
 
-// state the functions:
+// declare the functions:
 int initialUDP();
 void storeDate();
 void startDijkstra(char mapId, int start);
@@ -32,10 +32,10 @@ void printDijkstra();
 int sendBack(char mapId);
 
 // public variables:
-map<char, map<int, vector<pair<int, int>>>> data;
-map<char, vector<string>> parameters;
-map<int, int> dist;
-
+map<char, map<int, vector<pair<int, int>>>> data;// store each map of the city, and each key is map ID
+map<char, vector<string>> parameters;            // store the speed of each map, and each key is map ID
+map<int, int> dist;                              // store the distances which calculated by Dijkstras algorithm
+// cited from beej
 int sockfd;
 struct addrinfo hints, *servinfo, *p;
 int rv;
@@ -46,6 +46,7 @@ char s[INET6_ADDRSTRLEN];
 
 int main(int argc, char const *argv[])
 {
+    // initial the UDP
     int status;
     if ((status = initialUDP()) != 0)
     {
@@ -56,19 +57,21 @@ int main(int argc, char const *argv[])
 
     cout << "The Server A is up and running using UDP on port " << SERVER_A_PORT << "." << endl;
     printMapConstruction();
-
+    
+    // cited from beej
     addr_len = sizeof their_addr;
 
     struct parameter
     {
-        char map;
-        int vertexID;
-        long long fileSize;
+        char map;               // mapID
+        int vertexID;           // start vertex
+        long long fileSize;     // file size
     };
     struct parameter param;
 
     while(true)
     {
+        // receive the information from the AWS
         if ((numbytes = recvfrom(sockfd, &param, sizeof(parameter), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
             perror("recvfrom");
@@ -79,6 +82,7 @@ int main(int argc, char const *argv[])
         startDijkstra(param.map, param.vertexID);
         printDijkstra();
 
+        // send the information to the AWS
         if ((status = sendBack(param.map)) != 0)
         {
             perror("Can not send to AWS");
@@ -92,6 +96,7 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
+// initial the UDP, which cited from beej
 int initialUDP()
 {
     memset(&hints, 0, sizeof hints);
@@ -133,9 +138,11 @@ int initialUDP()
     return 0;
 }
 
+// deal with the information from the map.txt, and store them
 void storeDate()
 {
-    map<int, vector<pair<int, int>>> nodes;
+    
+    map<int, vector<pair<int, int>>> nodes;     // store every node into the same map
     ifstream infile;
     string fileName = "map.txt";
     infile.open(fileName.c_str());
@@ -148,40 +155,39 @@ void storeDate()
 
     string line;
     char mapID;
+    // read the word by word
     while (infile >> line)
     {
-        if (!isdigit(line[0]))
+        if (!isdigit(line[0]))          // if it is not a digit, then it will be the map ID
         {
             mapID = line[0];
             vector<string> speeds;
-            infile >> line;
+            infile >> line;             // it will be a propagation spped after the map ID
             speeds.push_back(line);
-            infile >> line;
+            infile >> line;             // it will be a transmission spped after the propagation spped
             speeds.push_back(line);
             parameters[mapID] = speeds;
             nodes.clear();
         }
+        // read the nodes and length
         else
         {
-            int head = stoi(line);
-            cout << line;
+            int head = stoi(line);      // change the string into the int
             infile >> line;
-            cout << line;
             int tail = stoi(line);
             infile >> line;
-            cout << line;
             int length = stoi(line);
 
             auto it = nodes.find(head);
             if (it != nodes.end())
             {
-                it->second.push_back(pair<int, int>(tail, length));
+                it->second.push_back(pair<int, int>(tail, length));     // store the nodes
             }
             else
             {
                 vector<pair<int, int>> leng;
-                leng.push_back(pair<int, int>(tail, length));
-                nodes[head] = leng;
+                leng.push_back(pair<int, int>(tail, length));           // store the length
+                nodes[head] = leng; 
             }
             auto itt = nodes.find(tail);
             if (itt != nodes.end())
@@ -197,27 +203,12 @@ void storeDate()
             data[mapID] = nodes;
         }
     }
-
-    // for (auto i = data.begin(); i != data.end(); ++i)
-    // {
-    //     cout << "map id : " << i->first << endl;
-    //     map<int, vector<pair<int, int>>> map1 = i->second;
-    //     for (auto j = map1.begin(); j != map1.end(); ++j)
-    //     {
-    //         cout << "vertex: " << j->first << endl;
-    //         vector<pair<int, int>> vector1 = j->second;
-    //         for (auto k = vector1.begin(); k != vector1.end(); ++k)
-    //         {
-    //             cout << k->first << " length: " << k->second << endl;
-    //         }
-    //     }
-    // }
     infile.close();
 }
 
+// print the information from the map
 void printMapConstruction()
 {
-    // map<string, map<int, vector<pair<int, int>>>> data;
 
     cout << "The Server A has constructed a list of " << data.size() << " maps : " << endl;
     cout << "-------------------------------------------" << endl;
@@ -237,9 +228,11 @@ void printMapConstruction()
     cout << "-------------------------------------------" << endl;
 }
 
+// find the shortest path by Dijkstras algorithm
+// cited from the stackoverflow
+// https://stackoverflow.com/questions/53184552/dijkstras-algorithm-w-adjacency-list-map-c
 void startDijkstra(char mapId, int start)
 {
-
     dist.clear();
     for (auto j = data[mapId].begin(); j != data[mapId].end(); ++j)
     {
@@ -271,9 +264,9 @@ void startDijkstra(char mapId, int start)
     dist.erase(start);
 }
 
+// print the shortest path after calculation by using Dijkstras algorithm
 void printDijkstra()
 {
-    // map<int, int> dist;
     cout << "The Server A has identified the following shortest paths : " << endl;
     cout << "-----------------------------" << endl;
     cout << "Destination\tMin Length" << endl;
@@ -285,9 +278,9 @@ void printDijkstra()
     cout << "-----------------------------" << endl;
 }
 
+// send back the necessary information to the AWS
 int sendBack(char mapId)
 {
-
     struct shortestPath
     {
         char dest[MAXDATASIZE];      // destination vertices, which seperates each data by space
@@ -296,8 +289,8 @@ int sendBack(char mapId)
         char trans[MAXDATASIZE];     // propagation speed
     };
     struct shortestPath sp;
-    // map<string, vector<string>> parameters;
 
+    // store the data into the sp, and seperate each data by space
     string dest_s, minLength_s;
     for (auto j = dist.begin(); j != dist.end(); ++j)
     {

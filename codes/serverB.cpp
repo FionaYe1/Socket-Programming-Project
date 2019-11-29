@@ -23,8 +23,8 @@ using namespace std;
 #define SERVER_B_PORT "22997" // the port users will be connecting to
 #define MAXDATASIZE 500
 
-
-
+// public variables:
+// cited from beej
 int sockfd;
 struct addrinfo hints, *servinfo, *p;
 int rv;
@@ -43,9 +43,11 @@ struct BtoAWS
 };
 struct BtoAWS bta;
 
+// declare the funtions:
 int sendBack();
 int initialUDP();
 
+// cited from beej
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -70,26 +72,37 @@ int main()
 
     struct toServerB
     {
-        char dest[MAXDATASIZE];
-        char minLength[MAXDATASIZE];
-        char propag[MAXDATASIZE];
-        char trans[MAXDATASIZE];
-        long long fileSize;
+        char dest[MAXDATASIZE];      // destination vertices, which seperates each data by space
+        char minLength[MAXDATASIZE]; // minimum length, which seperates each data by space
+        char propag[MAXDATASIZE];    // propagation speed
+        char trans[MAXDATASIZE];     // propagation speed
+        long long fileSize;          // file size
     };
     struct toServerB tsb;
 
-    while(true)
+    while (true)
     {
+        // receive the information from the AWS
         if ((numbytes = recvfrom(sockfd, &tsb, sizeof(toServerB), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
         {
             perror("recvfrom");
             exit(1);
         }
 
+        cout << "The Server B has received data for calculation:" << endl;
+        cout << "* Propagation speed : " << tsb.propag << " km / s;" << endl;
+        cout << "* Transmission speed : " << tsb.trans << " Bytes / s;" << endl;
+        
+        // split the data and store them into the vector
         istringstream iss(tsb.dest);
         vector<string> dest((istream_iterator<string>(iss)), istream_iterator<std::string>());
         istringstream iss2(tsb.minLength);
         vector<string> minLength((istream_iterator<string>(iss2)), istream_iterator<std::string>());
+        vector<string>::iterator k, l;
+        for (k = dest.begin(), l = minLength.begin(); k != dest.end() && l != minLength.end(); ++k, ++l)
+        {
+            cout << "* Path length for destination " << *k << " : " << *l << ";" << endl;
+        }
 
         cout << "The Server B has finished the calculation of the delays: " << endl;
         cout << "------------------------" << endl;
@@ -97,15 +110,17 @@ int main()
         cout << "------------------------" << endl;
 
         strcpy(bta.dest, tsb.dest);
-        double tt = tsb.fileSize / (8*stod(tsb.trans));
+        double tt = tsb.fileSize / (8 * stod(tsb.trans));
         bta.tt = tt;
-        string tp_s, delay_s; 
+        string tp_s, delay_s;
         vector<string>::iterator j, i;
+
+        // calculate the delay and print out the necessary information
         for (i = minLength.begin(), j = dest.begin(); i != minLength.end() && j != dest.end(); ++i, ++j)
         {
             double temp = stod(*i) / stod(tsb.propag);
             cout << *j << "\t\t";
-            printf("%.2f\n",temp + tt);
+            printf("%.2f\n", temp + tt);
             tp_s += to_string(temp);
             tp_s += " ";
             delay_s += to_string(temp + tt);
@@ -116,7 +131,7 @@ int main()
         strcpy(bta.delay, delay_s.c_str());
         strcpy(bta.tp, tp_s.c_str());
 
-        // cout << "test : !!!  " << bta.delay << "   " << bta.tp << endl;
+        // send back the information to the AWS
         if ((status = sendBack()) != 0)
         {
             perror("Can not send to AWS");
@@ -131,6 +146,7 @@ int main()
     return 0;
 }
 
+// cited from the beej
 int initialUDP()
 {
     memset(&hints, 0, sizeof hints);

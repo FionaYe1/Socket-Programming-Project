@@ -32,6 +32,7 @@ using namespace std;
 #define localhost "127.0.0.1"
 
 // public variables:
+// cited from beej
 int sockfd_TCP, new_fd_TCP, sockfd_UDP, numbytes; // listen on sock_fd, new connection on new_fd
 struct addrinfo hints_TCP, hints_UDP, *servinfo_TCP, *servinfo_UDP, *p;
 struct sockaddr_storage their_addr; // connector's address information
@@ -54,29 +55,29 @@ struct ParamFromClient param_from_client;
 
 struct shortestPath
 {
-    char dest[MAXDATASIZE];
-    char minLength[MAXDATASIZE];
-    char propag[MAXDATASIZE];
-    char trans[MAXDATASIZE];
+    char dest[MAXDATASIZE];      // destination vertices, which seperates each data by space
+    char minLength[MAXDATASIZE]; // minimum length, which seperates each data by space
+    char propag[MAXDATASIZE];    // propagation speed
+    char trans[MAXDATASIZE];     // propagation speed
 };
 struct shortestPath sp;
 
 struct toServerB
 {
-    char dest[MAXDATASIZE];
-    char minLength[MAXDATASIZE];
-    char propag[MAXDATASIZE];
-    char trans[MAXDATASIZE];
-    long long fileSize;
+    char dest[MAXDATASIZE];      // destination vertices, which seperates each data by space
+    char minLength[MAXDATASIZE]; // minimum length, which seperates each data by space
+    char propag[MAXDATASIZE];    // propagation speed
+    char trans[MAXDATASIZE];     // propagation speed
+    long long fileSize;          // file size
 };
 struct toServerB tsb;
 
 struct BtoAWS
 {
-    char dest[MAXDATASIZE];
-    double tt;
-    char tp[MAXDATASIZE];
-    char delay[MAXDATASIZE];
+    char dest[MAXDATASIZE];  // destination vertices, which seperates each data by space
+    double tt;               // transmission time
+    char tp[MAXDATASIZE];    // propagation time, which seperates each data by space
+    char delay[MAXDATASIZE]; // delat time, which seperates each data by space
 };
 struct BtoAWS bta;
 
@@ -86,6 +87,7 @@ int connectB();
 int initialTCP();
 int initialUDP();
 
+// cited from beej
 void sigchld_handler(int s)
 {
     // waitpid() might overwrite errno, so we save and restore it:
@@ -107,6 +109,7 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main()
 {
+    // initial the TCP with the client
     int status;
     if ((status = initialTCP()) != 0)
     {
@@ -123,18 +126,19 @@ int main()
             continue;
         }
         inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        printf("server: got connection from %s\n", s);
 
         if (!fork())
         {                      // this is the child process
             close(sockfd_TCP); // child doesn't need the listener
 
+            // initial the UDP with serverA and serverB
             if ((status = initialUDP()) != 0)
             {
                 printf("server: UDP start failed!\n");
                 return status;
             }
 
+            // receive the information from the client
             if ((numbytes = recv(new_fd_TCP, &param_from_client, sizeof(struct ParamFromClient), 0)) == -1)
             {
                 perror("recv");
@@ -144,24 +148,29 @@ int main()
             cout << "The AWS has received map ID " << param_from_client.map << ", start vertex " << param_from_client.vertexID
                  << " and file size " << param_from_client.fileSize << " from the client using TCP over port "
                  << AWS_TCP_PORT << endl;
+            
+            // do the process with serverA
             connectA();
+            // do the process with serverA
             connectB();
+
             struct AWS_To_Client
             {
-                char dest[MAXDATASIZE];
-                char minLength[MAXDATASIZE];
-                double tt;
-                char tp[MAXDATASIZE];
-                char delay[MAXDATASIZE];
+                char dest[MAXDATASIZE];      // destination vertices, which seperates each data by space
+                char minLength[MAXDATASIZE]; // minimum length, which seperates each data by space
+                double tt;                   // transmission time
+                char tp[MAXDATASIZE];        // propagation time, which seperates each data by space
+                char delay[MAXDATASIZE];     // delat time, which seperates each data by space
             };
             struct AWS_To_Client aws_to_client;
-
+            // store the information
             aws_to_client.tt = bta.tt;
             strcpy(aws_to_client.dest, bta.dest);
             strcpy(aws_to_client.minLength, tsb.minLength);
             strcpy(aws_to_client.tp, bta.tp);
             strcpy(aws_to_client.delay, bta.delay);
 
+            // send the information to the client
             if ((send(new_fd_TCP, &aws_to_client, sizeof(AWS_To_Client), 0) == -1))
             {
                 perror("recv");
@@ -176,6 +185,7 @@ int main()
     return 0;
 }
 
+// initial the TCP, which cited from beej
 int initialTCP()
 {
     memset(&hints_TCP, 0, sizeof hints_TCP);
@@ -237,6 +247,7 @@ int initialTCP()
     return 0;
 }
 
+// initial the UDP, which cited from beej
 int initialUDP()
 {
     memset(&hints_UDP, 0, sizeof hints_UDP);
@@ -257,12 +268,6 @@ int initialUDP()
             perror("talker: socket");
             continue;
         }
-        // if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
-        // {
-        //     close(sockfd);
-        //     perror("listener: bind");
-        //     continue;
-        // }
         break;
     }
     if (p == NULL)
@@ -274,8 +279,10 @@ int initialUDP()
     return 0;
 }
 
+// do the process with the serverA
 int connectA()
 {
+    // cited from beej
     if ((rv = getaddrinfo(localhost, SERVER_A_PORT, &hints_UDP, &servinfo_UDP)) != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -298,11 +305,6 @@ int connectA()
         return 2;
     }
 
-    // struct parameter *test;
-    // memset(test,0,sizeof(parameter));
-    // test->map = 'A';
-    // test->vertexID = 0;
-
     if ((numbytes = sendto(sockfd_UDP, &param_from_client, sizeof(ParamFromClient), 0, p->ai_addr, p->ai_addrlen)) == -1)
     {
         perror("talker: sendto");
@@ -310,10 +312,10 @@ int connectA()
     }
 
     freeaddrinfo(servinfo_UDP);
-    printf("talker: sent %d bytes to %s\n", numbytes, "Server A");
 
     addr_len = sizeof their_addr;
 
+    // receive the information from the serverA
     if ((numbytes = recvfrom(sockfd_UDP, &sp, sizeof(shortestPath), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
         perror("recvfrom");
@@ -325,12 +327,14 @@ int connectA()
     cout << "Destination\tMin Length" << endl;
     cout << "-----------------------------" << endl;
 
+    // split the data by space, and store them into the vector
     istringstream iss(sp.dest);
     vector<string> dest((istream_iterator<string>(iss)), istream_iterator<std::string>());
     istringstream iss2(sp.minLength);
     vector<string> minLength((istream_iterator<string>(iss2)), istream_iterator<std::string>());
     vector<string>::iterator j, i;
 
+    // print out the necessary information
     for (j = dest.begin(), i = minLength.begin(); j != dest.end() && i != minLength.end(); ++j, ++i)
     {
         cout << *j << "\t\t" << *i << endl;
@@ -341,14 +345,17 @@ int connectA()
     return 0;
 }
 
+// do the process with the serverB
 int connectB()
 {
-
+    // assign the data into struct toServerB, which will be sent to serverB
     strcpy(tsb.dest, sp.dest);
     strcpy(tsb.minLength, sp.minLength);
     strcpy(tsb.propag, sp.propag);
     strcpy(tsb.trans, sp.trans);
     tsb.fileSize = param_from_client.fileSize;
+
+    // cited from beej
     if ((rv = getaddrinfo(localhost, SERVER_B_PORT, &hints_UDP, &servinfo_UDP)) != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -370,6 +377,8 @@ int connectB()
         fprintf(stderr, "talker: failed to create socket\n");
         return 2;
     }
+
+    // send the information to serverB
     if ((numbytes = sendto(sockfd_UDP, &tsb, sizeof(toServerB), 0, p->ai_addr, p->ai_addrlen)) == -1)
     {
         perror("talker: sendto");
@@ -382,6 +391,7 @@ int connectB()
 
     addr_len = sizeof their_addr;
 
+    // receive the information from the serverB
     if ((numbytes = recvfrom(sockfd_UDP, &bta, sizeof(struct BtoAWS), 0, (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
         perror("recvfrom");
@@ -393,6 +403,7 @@ int connectB()
     cout << "Destination\tTt\tTp\tDelay" << endl;
     cout << "--------------------------------------------" << endl;
 
+    // split the data by space, and store them into the vector
     istringstream issT(bta.dest);
     vector<string> dest1((istream_iterator<string>(issT)), istream_iterator<std::string>());
     istringstream issT2(bta.tp);
@@ -400,8 +411,8 @@ int connectB()
     istringstream issT3(bta.delay);
     vector<string> delay((istream_iterator<string>(issT3)), istream_iterator<std::string>());
 
+    // print out the necessary information, and round the results to the 2nd decimal point
     vector<string>::iterator j, i, k;
-
     for (j = dest1.begin(), i = tp.begin(), k = delay.begin();
          j != dest1.end() && i != tp.end() && k != delay.end(); ++j, ++i, ++k)
     {
