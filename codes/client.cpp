@@ -107,9 +107,9 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    cout << "The client has sent query to AWS using TCP over port "
-         << AWS_TCP_PORT << ": start vertex " << param.vertexID << "; map " << param.map
-         << "; file size " << argv[3] << "." << endl;
+    cout << "The client has sent query to AWS using TCP: start vertex " 
+    << param.vertexID << "; map " << param.map 
+    << "; file size " << argv[3] << "." << endl;
 
     struct AWS_To_Client
     {
